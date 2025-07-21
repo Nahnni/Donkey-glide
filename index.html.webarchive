@@ -1,0 +1,682 @@
+bplist00—_WebMainResource’	
+_WebResourceTextEncodingName_WebResourceData_WebResourceMIMEType_WebResourceFrameName^WebResourceURLUUTF-8ObT<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>N√òBLEAK: Donkey Glide - Ultra Performance</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #990000;
+            overflow: hidden;
+            user-select: none;
+            touch-action: none;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            will-change: transform;
+        }
+        #gameContainer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #990000, #FF0000, #FFFFFF);
+        }
+        #gameCanvas {
+            border: 3px solid #FF0000;
+            border-radius: 6px;
+            cursor: pointer;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            will-change: transform;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            z-index: 1000;
+            will-change: opacity;
+        }
+        .title {
+            font-size: clamp(2rem, 8vw, 4rem);
+            font-weight: bold;
+            color: #FF0000;
+            text-shadow: 0 0 10px rgba(255,0,0,0.5);
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            font-size: clamp(1rem, 4vw, 1.5rem);
+            color: #FFCCCC;
+            margin-bottom: 1rem;
+        }
+        .btn {
+            background: linear-gradient(45deg, #FF0000, #CC0000);
+            border: 2px solid #FFFFFF;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            font-size: clamp(1rem, 3vw, 1.1rem);
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0.3rem;
+            transition: transform 0.1s;
+            will-change: transform;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .stats {
+            display: flex;
+            gap: 1.5rem;
+            margin: 0.8rem 0;
+            font-size: clamp(0.9rem, 3vw, 1rem);
+        }
+        .ui {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            font-size: clamp(1rem, 4vw, 1.1rem);
+            font-weight: bold;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .controls {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            font-size: clamp(0.8rem, 3vw, 0.9rem);
+            text-align: right;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .brand {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.4);
+            font-size: clamp(0.7rem, 2vw, 0.8rem);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="760" height="500"></canvas>
+        
+        <div id="startScreen" class="overlay">
+            <div class="title">N√òBLEAK</div>
+            <div class="subtitle">Donkey Glide</div>
+            <p style="margin: 0.8rem; opacity: 0.8; max-width: 300px;">TAP or SPACE to glide through chaos</p>
+            <button class="btn" onclick="startGame()">START GLIDING</button>
+            <div class="stats">
+                <div>Best: <span id="bestScore">0</span></div>
+            </div>
+        </div>
+        
+        <div id="gameOverScreen" class="overlay" style="display: none;">
+            <div class="title">GAME OVER</div>
+            <div class="stats">
+                <div>Score: <span id="finalScore">0</span></div>
+                <div>Coins: <span id="totalCoins">0</span></div>
+            </div>
+            <div id="newRecord" style="display: none; color: #FF0000; font-size: 1.3rem; margin: 0.8rem;">üèÜ NEW RECORD!</div>
+            <button class="btn" onclick="startGame()">PLAY AGAIN</button>
+        </div>
+        
+        <div class="ui">
+            <div>Score: <span id="score">0</span></div>
+            <div style="font-size: 0.8em; opacity: 0.7;">Best: <span id="highScore">0</span></div>
+        </div>
+        
+        <div class="controls">
+            <div>TAP / SPACE</div>
+        </div>
+        
+        <div class="brand">N√òBLEAK Energy</div>
+    </div>
+
+    <script>
+        'use strict';
+        
+        // Ultra-optimized game engine
+        class UltraGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d', {
+                    alpha: false,
+                    desynchronized: true,
+                    willReadFrequently: false
+                });
+                
+                this.setupCanvas();
+                this.initObjectPools();
+                this.bindEvents();
+                
+                this.gameState = 'start';
+                this.score = 0;
+                this.coins = 0;
+                this.highScore = parseInt(localStorage.getItem('nobleak-best') || '0');
+                
+                // Performance tracking
+                this.lastTime = 0;
+                this.frameCount = 0;
+                this.skipFrame = false;
+                
+                // Pre-calculated values
+                this.halfWidth = 0;
+                this.halfHeight = 0;
+                
+                this.updateUI();
+            }
+            
+            setupCanvas() {
+                // Optimal canvas size for performance
+                const w = Math.min(760, window.innerWidth * 0.95) | 0;
+                const h = Math.min(500, window.innerHeight * 0.8) | 0;
+                
+                this.canvas.width = w;
+                this.canvas.height = h;
+                this.halfWidth = w >> 1;
+                this.halfHeight = h >> 1;
+                
+                // Ultra performance settings
+                this.ctx.imageSmoothingEnabled = false;
+                this.ctx.textBaseline = 'top';
+                this.ctx.lineCap = 'square';
+                this.ctx.lineJoin = 'miter';
+                
+                // Pre-create gradient (expensive operation)
+                this.bgGradient = this.ctx.createLinearGradient(0, 0, 0, h);
+                this.bgGradient.addColorStop(0, '#FF0000');
+                this.bgGradient.addColorStop(0.5, '#FFFFFF');
+                this.bgGradient.addColorStop(1, '#CC0000');
+            }
+            
+            initObjectPools() {
+                // Object pooling to eliminate garbage collection
+                this.obstaclePool = [];
+                this.coinPool = [];
+                this.particlePool = [];
+                this.bgPool = [];
+                
+                // Pre-allocate objects
+                for (let i = 0; i < 20; i++) {
+                    this.obstaclePool[i] = { x: 0, y: 0, w: 0, h1: 0, h2: 0, active: false, passed: false };
+                    this.coinPool[i] = { x: 0, y: 0, rot: 0, active: false };
+                    this.particlePool[i] = { x: 0, y: 0, vx: 0, vy: 0, life: 0, active: false };
+                    this.bgPool[i] = { x: 0, y: 0, text: '', size: 0, opacity: 0, active: false };
+                }
+            }
+            
+            bindEvents() {
+                let isHandling = false;
+                
+                const handleInput = (e) => {
+                    if (isHandling) return;
+                    isHandling = true;
+                    e.preventDefault();
+                    this.jump();
+                    setTimeout(() => isHandling = false, 50);
+                };
+                
+                this.canvas.addEventListener('touchstart', handleInput, { passive: false });
+                this.canvas.addEventListener('mousedown', handleInput);
+                this.canvas.addEventListener('contextmenu', e => e.preventDefault());
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space') handleInput(e);
+                });
+                
+                // Prevent scrolling and zoom
+                document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+                document.addEventListener('gesturestart', e => e.preventDefault());
+            }
+            
+            initGame() {
+                this.gameState = 'playing';
+                this.score = 0;
+                this.coins = 0;
+                
+                // Reset all pools
+                this.obstaclePool.forEach(obj => obj.active = false);
+                this.coinPool.forEach(obj => obj.active = false);
+                this.particlePool.forEach(obj => obj.active = false);
+                this.bgPool.forEach(obj => obj.active = false);
+                
+                // Game state
+                this.donkey = {
+                    x: 80,
+                    y: this.halfHeight,
+                    w: 32,
+                    h: 32,
+                    vy: 0,
+                    rot: 0,
+                    canJump: true,
+                    cooldown: 0
+                };
+                
+                this.speed = 2.2;
+                this.gravity = 0.28;
+                this.jumpPower = -5.8;
+                
+                this.spawnTimer = 0;
+                this.coinTimer = 0;
+                this.bgTimer = 0;
+                
+                // Initialize background elements
+                for (let i = 0; i < 6; i++) {
+                    const bg = this.bgPool[i];
+                    bg.x = Math.random() * this.canvas.width * 1.5;
+                    bg.y = Math.random() * this.canvas.height;
+                    bg.text = Math.random() < 0.7 ? 'N√òBLEAK' : 'USE THE RICH';
+                    bg.size = 12 + (Math.random() * 12) | 0;
+                    bg.opacity = 0.08 + Math.random() * 0.12;
+                    bg.active = true;
+                }
+                
+                this.updateUI();
+                this.lastTime = performance.now();
+                this.gameLoop();
+            }
+            
+            gameLoop(currentTime) {
+                if (this.gameState !== 'playing') return;
+                
+                const dt = currentTime - this.lastTime;
+                this.lastTime = currentTime;
+                
+                // Skip frame if too slow (maintain 60fps)
+                this.frameCount++;
+                if (dt > 20 && this.frameCount % 2 === 0) {
+                    requestAnimationFrame(t => this.gameLoop(t));
+                    return;
+                }
+                
+                this.update(dt);
+                this.render();
+                
+                requestAnimationFrame(t => this.gameLoop(t));
+            }
+            
+            update(dt) {
+                const d = this.donkey;
+                
+                // Physics (optimized)
+                d.vy += this.gravity;
+                d.y += d.vy;
+                d.rot = Math.max(-20, Math.min(20, d.vy * 1.8)) | 0;
+                
+                // Jump cooldown
+                if (d.cooldown > 0) {
+                    d.cooldown--;
+                    if (d.cooldown === 0) d.canJump = true;
+                }
+                
+                // Spawning (optimized timers)
+                this.spawnTimer++;
+                if (this.spawnTimer > 140) {
+                    this.spawnTimer = 0;
+                    this.spawnObstacle();
+                }
+                
+                this.coinTimer++;
+                if (this.coinTimer > 100) {
+                    this.coinTimer = 0;
+                    if (Math.random() < 0.55) this.spawnCoin();
+                }
+                
+                // Update obstacles
+                for (let i = 0; i < this.obstaclePool.length; i++) {
+                    const obs = this.obstaclePool[i];
+                    if (!obs.active) continue;
+                    
+                    obs.x -= this.speed;
+                    
+                    if (!obs.passed && obs.x + obs.w < d.x) {
+                        obs.passed = true;
+                        this.addScore(1);
+                    }
+                    
+                    if (obs.x < -60) obs.active = false;
+                }
+                
+                // Update coins
+                for (let i = 0; i < this.coinPool.length; i++) {
+                    const coin = this.coinPool[i];
+                    if (!coin.active) continue;
+                    
+                    coin.x -= this.speed;
+                    coin.rot += 3;
+                    
+                    // Collision check (inlined for performance)
+                    if (d.x < coin.x + 18 && d.x + d.w > coin.x &&
+                        d.y < coin.y + 18 && d.y + d.h > coin.y) {
+                        coin.active = false;
+                        this.addScore(5);
+                        this.coins++;
+                        this.addParticles(coin.x + 9, coin.y + 9);
+                    }
+                    
+                    if (coin.x < -30) coin.active = false;
+                }
+                
+                // Update particles
+                for (let i = 0; i < this.particlePool.length; i++) {
+                    const p = this.particlePool[i];
+                    if (!p.active) continue;
+                    
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.1;
+                    p.life--;
+                    
+                    if (p.life <= 0) p.active = false;
+                }
+                
+                // Update background
+                for (let i = 0; i < this.bgPool.length; i++) {
+                    const bg = this.bgPool[i];
+                    if (!bg.active) continue;
+                    
+                    bg.x -= this.speed * 0.25;
+                    if (bg.x < -80) {
+                        bg.x = this.canvas.width + 20;
+                        bg.y = Math.random() * this.canvas.height;
+                    }
+                }
+                
+                // Collision detection (optimized)
+                this.checkCollisions();
+                
+                // Boundary check
+                if (d.y < 0 || d.y + d.h > this.canvas.height) {
+                    this.endGame();
+                }
+            }
+            
+            spawnObstacle() {
+                const obs = this.getInactiveObstacle();
+                if (!obs) return;
+                
+                const gap = 120;
+                const minH = 40;
+                const maxH = this.canvas.height - gap - minH;
+                const topH = minH + (Math.random() * maxH) | 0;
+                
+                obs.x = this.canvas.width;
+                obs.y = 0;
+                obs.w = 45;
+                obs.h1 = topH;
+                obs.h2 = this.canvas.height - (topH + gap);
+                obs.active = true;
+                obs.passed = false;
+            }
+            
+            spawnCoin() {
+                const coin = this.getInactiveCoin();
+                if (!coin) return;
+                
+                coin.x = this.canvas.width;
+                coin.y = 30 + (Math.random() * (this.canvas.height - 60)) | 0;
+                coin.rot = 0;
+                coin.active = true;
+            }
+            
+            addParticles(x, y) {
+                for (let i = 0; i < 4; i++) {
+                    const p = this.getInactiveParticle();
+                    if (!p) break;
+                    
+                    p.x = x;
+                    p.y = y;
+                    p.vx = (Math.random() - 0.5) * 6;
+                    p.vy = (Math.random() - 0.5) * 6;
+                    p.life = 20;
+                    p.active = true;
+                }
+            }
+            
+            checkCollisions() {
+                const d = this.donkey;
+                
+                for (let i = 0; i < this.obstaclePool.length; i++) {
+                    const obs = this.obstaclePool[i];
+                    if (!obs.active) continue;
+                    
+                    if (d.x < obs.x + obs.w && d.x + d.w > obs.x) {
+                        if (d.y < obs.h1 || d.y + d.h > obs.h1 + 120) {
+                            this.endGame();
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            render() {
+                const ctx = this.ctx;
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+                
+                // Background (single draw call)
+                ctx.fillStyle = this.bgGradient;
+                ctx.fillRect(0, 0, w, h);
+                
+                // Background text (batched)
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                for (let i = 0; i < this.bgPool.length; i++) {
+                    const bg = this.bgPool[i];
+                    if (!bg.active) continue;
+                    
+                    ctx.save();
+                    ctx.globalAlpha = bg.opacity;
+                    ctx.fillStyle = '#FF0000';
+                    ctx.font = `bold ${bg.size}px Arial`;
+                    ctx.fillText(bg.text, bg.x | 0, bg.y | 0);
+                    ctx.restore();
+                }
+                
+                ctx.globalAlpha = 1;
+                
+                // Obstacles (batched white fills)
+                ctx.fillStyle = '#FFFFFF';
+                for (let i = 0; i < this.obstaclePool.length; i++) {
+                    const obs = this.obstaclePool[i];
+                    if (!obs.active) continue;
+                    
+                    ctx.fillRect(obs.x | 0, 0, obs.w, obs.h1);
+                    ctx.fillRect(obs.x | 0, (obs.h1 + 120) | 0, obs.w, obs.h2);
+                }
+                
+                // Graffiti (batched red text)
+                ctx.fillStyle = '#FF0000';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                for (let i = 0; i < this.obstaclePool.length; i++) {
+                    const obs = this.obstaclePool[i];
+                    if (!obs.active || obs.h1 < 30) continue;
+                    
+                    ctx.fillText('N√òBLEAK', (obs.x + obs.w/2) | 0, (obs.h1 - 12) | 0);
+                }
+                
+                // Coins (optimized rendering)
+                for (let i = 0; i < this.coinPool.length; i++) {
+                    const coin = this.coinPool[i];
+                    if (!coin.active) continue;
+                    
+                    ctx.save();
+                    ctx.translate((coin.x + 9) | 0, (coin.y + 9) | 0);
+                    ctx.rotate(coin.rot * 0.0174533); // Pre-calculated PI/180
+                    ctx.fillStyle = '#FF0000';
+                    ctx.fillRect(-9, -9, 18, 18);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = 'bold 14px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('$', 0, -2);
+                    ctx.restore();
+                }
+                
+                // Particles (single color, batched)
+                ctx.fillStyle = '#FF0000';
+                for (let i = 0; i < this.particlePool.length; i++) {
+                    const p = this.particlePool[i];
+                    if (!p.active) continue;
+                    
+                    ctx.save();
+                    ctx.globalAlpha = p.life / 20;
+                    ctx.fillRect(p.x | 0, p.y | 0, 2, 2);
+                    ctx.restore();
+                }
+                
+                // Donkey (optimized)
+                this.renderDonkey();
+            }
+            
+            renderDonkey() {
+                const ctx = this.ctx;
+                const d = this.donkey;
+                
+                ctx.save();
+                ctx.translate((d.x + 16) | 0, (d.y + 16) | 0);
+                ctx.rotate(d.rot * 0.0174533);
+                
+                // Body
+                ctx.fillStyle = '#FF0000';
+                ctx.fillRect(-16, -16, 32, 32);
+                
+                // Head
+                ctx.fillStyle = '#FF3333';
+                ctx.fillRect(-14, -14, 28, 14);
+                
+                // Ears
+                ctx.fillStyle = '#FF0000';
+                ctx.fillRect(-12, -18, 6, 8);
+                ctx.fillRect(6, -18, 6, 8);
+                
+                // Sunglasses
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(-12, -8, 24, 8);
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(-10, -6, 7, 4);
+                ctx.fillRect(3, -6, 7, 4);
+                
+                // Reflections
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(-9, -5, 2, 2);
+                ctx.fillRect(4, -5, 2, 2);
+                
+                // Snout
+                ctx.fillStyle = '#FF6666';
+                ctx.fillRect(-10, 0, 20, 6);
+                
+                // Details
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(-6, 1, 2, 2);
+                ctx.fillRect(4, 1, 2, 2);
+                ctx.fillRect(-8, 4, 16, 1);
+                
+                ctx.restore();
+            }
+            
+            // Object pool getters (inlined for performance)
+            getInactiveObstacle() {
+                for (let i = 0; i < this.obstaclePool.length; i++) {
+                    if (!this.obstaclePool[i].active) return this.obstaclePool[i];
+                }
+                return null;
+            }
+            
+            getInactiveCoin() {
+                for (let i = 0; i < this.coinPool.length; i++) {
+                    if (!this.coinPool[i].active) return this.coinPool[i];
+                }
+                return null;
+            }
+            
+            getInactiveParticle() {
+                for (let i = 0; i < this.particlePool.length; i++) {
+                    if (!this.particlePool[i].active) return this.particlePool[i];
+                }
+                return null;
+            }
+            
+            jump() {
+                if (this.gameState === 'playing' && this.donkey.canJump) {
+                    this.donkey.vy = this.jumpPower;
+                    this.donkey.canJump = false;
+                    this.donkey.cooldown = 10;
+                }
+            }
+            
+            addScore(points) {
+                this.score += points;
+                if (this.score % 50 === 0 && this.speed < 3.5) {
+                    this.speed += 0.1; // Progressive difficulty
+                }
+                this.updateUI();
+            }
+            
+            updateUI() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('highScore').textContent = this.highScore;
+                document.getElementById('bestScore').textContent = this.highScore;
+            }
+            
+            endGame() {
+                this.gameState = 'gameOver';
+                
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('nobleak-best', this.highScore.toString());
+                    document.getElementById('newRecord').style.display = 'block';
+                } else {
+                    document.getElementById('newRecord').style.display = 'none';
+                }
+                
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('totalCoins').textContent = this.coins;
+                document.getElementById('gameOverScreen').style.display = 'flex';
+            }
+        }
+        
+        let game;
+        
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOverScreen').style.display = 'none';
+            game.initGame();
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            game = new UltraGame();
+        });
+        
+        // Optimized resize handler
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (game) game.setupCanvas();
+            }, 150);
+        });
+    </script>
+
+</body></html>Ytext/htmlP_^https://d1143768-7ba2-4fc2-8d34-c68e531171a4.preview.emergentagent.com/ultra-donkey-glide.html    ( F X n Ö î öbÚb¸b˝                           c^
